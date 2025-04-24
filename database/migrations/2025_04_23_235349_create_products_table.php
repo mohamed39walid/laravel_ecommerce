@@ -11,14 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name_en');
             $table->string('name_ar');
             $table->text('description_en')->nullable();
             $table->text('description_ar')->nullable();
-            $table->string('image')->nullable();
-            $table->enum('status', ['active', 'not_active'])->default('active');
+            $table->json('images')->nullable(); // store as JSON array
+            $table->decimal('price', 10, 2);
+            $table->decimal('discounted_price', 10, 2)->nullable();
+            $table->integer('quantity');
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
     }
@@ -28,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('products');
     }
 };
