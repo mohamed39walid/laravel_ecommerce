@@ -20,29 +20,37 @@ class AuthController extends Controller
      */
 
 
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'is_admin' => false,
-            'image' => 'image.png'
-        ]);
-
-        event(new Registered($user));
-
-        return response()->json([
-            'message' => "User registered successfully. Please check your email for verification. If you didn't find the email check the spam!",
-            'user' => $user,
-        ]);
-    }
+     public function register(Request $request)
+     {
+         $request->validate([
+             'name' => 'required|string|max:255',
+             'email' => 'required|string|email|max:255|unique:users',
+             'password' => 'required|string|min:6|confirmed',
+             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+         ]);
+     
+         $imagePath = 'image.png'; // default
+     
+         if ($request->hasFile('image')) {
+             $imagePath = $request->file('image')->store('users', 'public');
+         }
+     
+         $user = User::create([
+             'name' => $request->name,
+             'email' => $request->email,
+             'password' => bcrypt($request->password),
+             'is_admin' => false,
+             'image' => $imagePath,
+         ]);
+     
+         event(new Registered($user));
+     
+         return response()->json([
+             'message' => "User registered successfully. Please check your email.",
+             'user' => $user,
+         ]);
+     }
+     
 
     /**
      * Authenticate user and return token

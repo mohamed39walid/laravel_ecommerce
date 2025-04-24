@@ -15,11 +15,17 @@ use Illuminate\Support\Facades\Mail;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::get('/categories',[CategoryController::class,'index']);
+Route::get('/categories/{category}',[CategoryController::class,'show']);
+
+//auth_sanctum middleware
+Route::middleware(['auth:sanctum','admin'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::apiResource('categories', CategoryController::class);
+    Route::post('/categories',[CategoryController::class,'store']);
+    Route::put('/categories/{category}',[CategoryController::class,'update']);
+    Route::delete('/categories/{category}',[CategoryController::class,'destroy']);
     Route::apiResource('products', ProductController::class);
 
     Route::prefix('cart')->group(function () {
