@@ -8,53 +8,45 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 
-
 class AuthController extends Controller
 {
-    /**
-     * Register a new user
-     */
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
 
+        $imagePath = 'image.png'; // default
 
-     public function register(Request $request)
-     {
-         $request->validate([
-             'name' => 'required|string|max:255',
-             'email' => 'required|string|email|max:255|unique:users',
-             'password' => 'required|string|min:6|confirmed',
-             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-         ]);
-     
-         $imagePath = 'image.png'; // default
-     
-         if ($request->hasFile('image')) {
-             $imagePath = $request->file('image')->store('users', 'public');
-         }
-     
-         $user = User::create([
-             'name' => $request->name,
-             'email' => $request->email,
-             'password' => bcrypt($request->password),
-             'is_admin' => false,
-             'image' => $imagePath,
-         ]);
-     
-         event(new Registered($user));
-     
-         return response()->json([
-             'message' => "User registered successfully. Please check your email.",
-             'user' => $user,
-         ]);
-     }
-     
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('users', 'public');
+        }
 
-    /**
-     * Authenticate user and return token
-     */
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'is_admin' => false,
+            'image' => $imagePath,
+        ]);
+
+        event(new Registered($user));
+
+        return response()->json([
+            'message' => "User registered successfully. Please check your email.",
+            'user' => $user,
+        ]);
+    }
+
     public function login(Request $request)
     {
         $request->validate([
@@ -77,17 +69,11 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Get authenticated user details
-     */
     public function user(Request $request)
     {
         return response()->json($request->user());
     }
 
-    /**
-     * Logout user (revoke token)
-     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -101,33 +87,41 @@ class AuthController extends Controller
     {
         return response()->json([
             'url' => Socialite::driver('google')
-                ->stateless()  // Critical for APIs
+                ->stateless()
                 ->redirect()
-                ->getTargetUrl(),  // Get the Google OAuth URL
+                ->getTargetUrl(),
         ]);
     }
 
     public function handleGoogleCallback()
     {
         try {
-            $googleUser = Socialite::driver('google')
-                ->stateless()  // Critical for APIs
-                ->user();
+            $googleUser = Socialite::driver('google')->stateless()->user();
 
-            // Find or create user
+            // Fetch avatar from Google
+            $imagePath = 'image.png'; // fallback default
+            if ($googleUser->avatar) {
+                $imageData = Http::get($googleUser->avatar)->body();
+                $filename = 'google_' . uniqid() . '.jpg';
+                Storage::disk('public')->put('users/' . $filename, $imageData);
+                $imagePath = 'users/' . $filename;
+            }
+
+            // Create or find user
             $user = User::firstOrCreate(
                 ['email' => $googleUser->email],
                 [
                     'name' => $googleUser->name,
                     'password' => bcrypt(Str::random(16)),
                     'email_verified_at' => now(),
+                    'image' => $imagePath,
                 ]
             );
 
-            // Generate API token
             $token = $user->createToken('google-token')->plainTextToken;
 
             return response()->json([
+                'message' => 'Logged in with Google successfully.',
                 'user' => $user,
                 'token' => $token,
                 'token_type' => 'Bearer',
