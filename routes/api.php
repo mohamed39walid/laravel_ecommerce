@@ -5,63 +5,69 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
-use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Auth\VerificationController;
 
-
-
-
+// Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('/categories',[CategoryController::class,'index']);
-Route::get('/categories/{category}',[CategoryController::class,'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{category}', [CategoryController::class, 'show']);
 
-Route::get('/products',[ProductController::class,'index']);
-Route::get('/products/{id}',[ProductController::class,'show']);
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
 
-
-//auth_sanctum middleware
-Route::middleware(['auth:sanctum','admin'])->group(function () {
+// Authenticated + Verified routes (common for all users)
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::post('/categories',[CategoryController::class,'store']);
-    Route::put('/categories/{category}',[CategoryController::class,'update']);
-    Route::delete('/categories/{category}',[CategoryController::class,'destroy']);
-    // Route::apiResource('products', ProductController::class);
-
+    // Cart Routes
     Route::prefix('cart')->group(function () {
         Route::post('/', [CartController::class, 'add']);
         Route::get('/', [CartController::class, 'index']);
-        Route::put('/{id}', [CartController::class, 'update']);
-        Route::delete('/{id}', [CartController::class, 'remove']);
+        Route::put('/{rowId}', [CartController::class, 'update']);
+        Route::delete('/{rowId}', [CartController::class, 'remove']);
         Route::post('/clear', [CartController::class, 'clear']);
     });
 
-    Route::apiResource('orders', OrderController::class);
-    Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
+    // Order Routes (User)
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
 
-
-    Route::post('/products',[ProductController::class,'store']);
-    Route::put('/products/{id}',[ProductController::class,'update']);
-    Route::delete('/products/{id}',[ProductController::class,'destroy']);
+    // Payment route (User)
+    Route::post('/orders/{id}/pay', [OrderController::class, 'pay']);
 });
 
+// Admin-only routes
+Route::middleware(['auth:sanctum', 'verified', 'admin'])->group(function () {
+    Route::post('/categories', [CategoryController::class, 'store']);
+    Route::put('/categories/{category}', [CategoryController::class, 'update']);
+    Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
+    Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
+});
 
-//verifying email
+// Email verification routes
 Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
     ->middleware(['signed'])
     ->name('verification.verify');
 
-
-// Resend route (requires auth)
 Route::post('/email/resend', [VerificationController::class, 'resend'])
     ->middleware('auth:sanctum')
     ->name('verification.resend');
 
-//google authentication routes
+// Google authentication
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('google.login');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+
+// Optional: Fallback for undefined routes (for debugging)
+Route::fallback(function () {
+    return response()->json(['message' => 'API route not found.'], 404);
+});

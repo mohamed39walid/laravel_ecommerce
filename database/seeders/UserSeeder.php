@@ -21,6 +21,13 @@ class UserSeeder extends Seeder
             'password' => Hash::make('Admin@123'),
             'is_admin' => true,
             'image' => null,
+        ], [
+            'name' => 'Mohamed Walid',
+            'email' => 'skillergaming014@gmail.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('Mohamed123'),
+            'is_admin' => false,
+            'image' => null,
         ]);
     }
 }
