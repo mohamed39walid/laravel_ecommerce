@@ -23,9 +23,9 @@ class UserSeeder extends Seeder
             'image' => null,
         ], [
             'name' => 'Mohamed Walid',
-            'email' => 'skillergaming014@gmail.com',
+            'email' => 'User@gmail.com',
             'email_verified_at' => now(),
-            'password' => Hash::make('Mohamed123'),
+            'password' => Hash::make('User123'),
             'is_admin' => false,
             'image' => null,
         ]);

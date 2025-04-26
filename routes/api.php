@@ -18,12 +18,12 @@ Route::get('/categories/{category}', [CategoryController::class, 'show']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 
-// Authenticated + Verified routes (common for all users)
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+// Authenticated + Verified + Customer-only routes
+Route::middleware(['auth:sanctum', 'verified', 'customer'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Cart Routes
+    // Cart Routes (only for customers)
     Route::prefix('cart')->group(function () {
         Route::post('/', [CartController::class, 'add']);
         Route::get('/', [CartController::class, 'index']);
@@ -32,12 +32,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('/clear', [CartController::class, 'clear']);
     });
 
-    // Order Routes (User)
+    // Order Routes (only for customers)
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
 
-    // Payment route (User)
+    // Payment Route (only for customers)
     Route::post('/orders/{id}/pay', [OrderController::class, 'pay']);
 });
 
@@ -67,7 +67,7 @@ Route::post('/email/resend', [VerificationController::class, 'resend'])
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('google.login');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
-// Optional: Fallback for undefined routes (for debugging)
+// Optional: Fallback for undefined routes
 Route::fallback(function () {
     return response()->json(['message' => 'API route not found.'], 404);
 });

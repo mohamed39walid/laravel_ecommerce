@@ -18,79 +18,116 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string|min:2|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:6|confirmed',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
 
-        $imagePath = 'image.png'; // default
+            $imagePath = 'image.png'; // default
 
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('users', 'public');
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('users', 'public');
+            }
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => bcrypt($request->password),
+                'is_admin' => false,
+                'image' => $imagePath,
+            ]);
+
+            event(new Registered($user));
+
+            return response()->json([
+                'message' => "User registered successfully. Please check the spam in your email.",
+                'user' => $user,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Registration failed.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'is_admin' => false,
-            'image' => $imagePath,
-        ]);
-
-        event(new Registered($user));
-
-        return response()->json([
-            'message' => "User registered successfully. Please check your email.",
-            'user' => $user,
-        ]);
     }
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
             ]);
+
+            if (!Auth::attempt($request->only('email', 'password'))) {
+                throw ValidationException::withMessages([
+                    'email' => ['The provided credentials are incorrect.'],
+                ]);
+            }
+
+            $user = $request->user();
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+            ]);
+        } catch (ValidationException $e) {
+            throw $e; // Laravel will handle validation exceptions normally
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Login failed.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        $user = $request->user();
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ]);
     }
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        try {
+            return response()->json($request->user());
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve user.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        try {
+            $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Successfully logged out'
-        ]);
+            return response()->json([
+                'message' => 'Successfully logged out'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Logout failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function redirectToGoogle()
     {
-        return response()->json([
-            'url' => Socialite::driver('google')
-                ->stateless()
-                ->redirect()
-                ->getTargetUrl(),
-        ]);
+        try {
+            return response()->json([
+                'url' => Socialite::driver('google')
+                    ->stateless()
+                    ->redirect()
+                    ->getTargetUrl(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to redirect to Google.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function handleGoogleCallback()
